@@ -1,25 +1,35 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+
 public class Program
 {
-    private static DiscordSocketClient _client;
-    private static Dictionary<ulong, bool> _awaitingResponses = new Dictionary<ulong, bool>();
+    private static DiscordSocketClient? _client;
+    private static readonly Dictionary<ulong, bool> _awaitingResponses = new();
+    private static readonly string BOT_TOKEN = Environment.GetEnvironmentVariable("DISCORD_BOT_TOKEN")
+        ?? throw new InvalidOperationException("DISCORD_BOT_TOKEN environment variable is not set");
 
-    private const string BOT_TOKEN = "YOUR_TOKEN";
     private const ulong PUBLIC_CHANNEL_ID = 1403870144169640069;
     private const ulong MOD_CHANNEL_ID = 1403875753199927409;
 
     public static async Task Main(string[] args)
     {
+        var builder = WebApplication.CreateBuilder(args);
+        var app = builder.Build();
+
+        app.MapGet("/", () => "Монитор активен");
+        app.Run("http://0.0.0.0:3000");
+
         _client = new DiscordSocketClient(new DiscordSocketConfig
         {
             GatewayIntents = GatewayIntents.AllUnprivileged |
-                            GatewayIntents.MessageContent |
-                            GatewayIntents.DirectMessages
+                             GatewayIntents.MessageContent |
+                             GatewayIntents.DirectMessages
         });
 
         _client.Ready += ClientReady;
@@ -34,9 +44,16 @@ public class Program
 
     private static async Task ClientReady()
     {
-        Console.WriteLine($"{_client.CurrentUser.Username} ready!");
-        var publicChannel = _client.GetChannel(PUBLIC_CHANNEL_ID) as IMessageChannel;
-        if (publicChannel != null) await SendBotMessage(publicChannel);
+        Console.WriteLine($"{_client.CurrentUser?.Username ?? "Bot"} ready!");
+
+        var channel = _client.GetChannel(PUBLIC_CHANNEL_ID) as IMessageChannel;
+        if (channel == null)
+        {
+            Console.WriteLine($"Канал с ID {PUBLIC_CHANNEL_ID} не найден.");
+            return;
+        }
+
+        await SendBotMessage(channel);
     }
 
     private static async Task SendBotMessage(IMessageChannel channel)
@@ -80,29 +97,24 @@ public class Program
 
             _awaitingResponses[component.User.Id] = true;
 
-            await component.FollowupAsync(
-                "Проверьте ваши личные сообщения с ботом",
-                ephemeral: true);
+            await component.FollowupAsync("Проверьте ваши личные сообщения с ботом", ephemeral: true);
         }
         catch (Discord.Net.HttpException httpEx) when (httpEx.DiscordCode.HasValue && (int)httpEx.DiscordCode.Value == 50007)
         {
             await component.FollowupAsync(
-                "Не удалось отправить вам сообщение. " +
-                "Проверьте, что у вас открыты ЛС для этого сервера.",
+                "Не удалось отправить вам сообщение. Проверьте, что у вас открыты ЛС для этого сервера.",
                 ephemeral: true);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Ошибка: {ex.Message}");
-            await component.FollowupAsync(
-                "Произошла ошибка. Попробуйте позже.",
-                ephemeral: true);
+            await component.FollowupAsync("Произошла ошибка. Попробуйте позже.", ephemeral: true);
         }
     }
 
     private static async Task MessageReceived(SocketMessage message)
     {
-        if (message.Author.IsBot ||  !(message is SocketUserMessage) || message.Channel is not IDMChannel)
+        if (message.Author.IsBot || message.Channel is not IDMChannel || message is not SocketUserMessage)
             return;
 
         if (_awaitingResponses.TryGetValue(message.Author.Id, out bool isWaiting) && isWaiting)
@@ -110,7 +122,12 @@ public class Program
             try
             {
                 var modChannel = _client.GetChannel(MOD_CHANNEL_ID) as IMessageChannel;
-                if (modChannel == null) return; 
+                if (modChannel == null)
+                {
+                    Console.WriteLine($"Модераторский канал с ID {MOD_CHANNEL_ID} не найден.");
+                    return;
+                }
+
                 var embed = new EmbedBuilder()
                     .WithTitle("Новое обращение")
                     .WithDescription(message.Content)
