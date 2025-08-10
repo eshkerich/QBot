@@ -23,7 +23,7 @@ public class Program
 
         app.MapGet("/", () => $"Монитор активен. Локальный адрес: http://0.0.0.0:3000");
 
-        _ = Task.Run(() => app.Run("http://0.0.0.0:3000"));
+        _ = Task.Run(() => app.Run("http://0.0.0.0:8000"));
 
         _client = new DiscordSocketClient(new DiscordSocketConfig
         {
