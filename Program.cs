@@ -10,8 +10,8 @@ public class Program
     private static Dictionary<ulong, bool> _awaitingResponses = new Dictionary<ulong, bool>();
 
     private const string BOT_TOKEN = "YOUR_TOKEN";
-    private const ulong PUBLIC_CHANNEL_ID = 123456789012345678;
-    private const ulong MOD_CHANNEL_ID = 123456789123456789;
+    private const ulong PUBLIC_CHANNEL_ID = 1403870144169640069;
+    private const ulong MOD_CHANNEL_ID = 1403875753199927409;
 
     public static async Task Main(string[] args)
     {
