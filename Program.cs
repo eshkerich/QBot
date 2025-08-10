@@ -69,37 +69,35 @@ public class Program
 
     private static async Task ButtonExecuted(SocketMessageComponent component)
     {
-
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                var dmChannel = await component.User.CreateDMChannelAsync();
-                await dmChannel.SendMessageAsync(
-                    "Пожалуйста, напишите ваш вопрос или предложение. " +
-                    "Отправьте сообщение в этот чат, и оно будет переслано модераторам.");
+            await component.DeferAsync(ephemeral: true);
 
-                _awaitingResponses[component.User.Id] = true;
+            var dmChannel = await component.User.CreateDMChannelAsync();
+            await dmChannel.SendMessageAsync(
+                "Пожалуйста, напишите ваш вопрос или предложение. " +
+                "Отправьте сообщение в этот чат, и оно будет переслано модераторам.");
 
-                await component.FollowupAsync(
-                    "Проверьте ваши личные сообщения с ботом",
-                    ephemeral: true);
-            }
-            catch (Discord.Net.HttpException httpEx) when ((int)httpEx.DiscordCode == 50007)
-            {
-                await component.FollowupAsync(
-                    "Не удалось отправить вам сообщение. " +
-                    "Проверьте, что у вас открыты ЛС для этого сервера.",
-                    ephemeral: true);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ошибка: {ex.Message}");
-                await component.FollowupAsync(
-                    "Произошла ошибка. Попробуйте позже.",
-                    ephemeral: true);
-            }
-        });
+            _awaitingResponses[component.User.Id] = true;
+
+            await component.FollowupAsync(
+                "Проверьте ваши личные сообщения с ботом",
+                ephemeral: true);
+        }
+        catch (Discord.Net.HttpException httpEx) when (httpEx.DiscordCode.HasValue && (int)httpEx.DiscordCode.Value == 50007)
+        {
+            await component.FollowupAsync(
+                "Не удалось отправить вам сообщение. " +
+                "Проверьте, что у вас открыты ЛС для этого сервера.",
+                ephemeral: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка: {ex.Message}");
+            await component.FollowupAsync(
+                "Произошла ошибка. Попробуйте позже.",
+                ephemeral: true);
+        }
     }
 
     private static async Task MessageReceived(SocketMessage message)
