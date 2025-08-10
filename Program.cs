@@ -23,7 +23,7 @@ public class Program
         var app = builder.Build();
 
         app.MapGet("/", () => "Монитор активен");
-        app.Run("http://0.0.0.0:3000");
+        app.Run("http://0.0.0.0:8000");
 
         _client = new DiscordSocketClient(new DiscordSocketConfig
         {
